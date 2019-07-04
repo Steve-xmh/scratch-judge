@@ -4,7 +4,7 @@
   "description": "A custom scratch-vm used to watch program status and output result about the program.",
   "main": "src/index.js",
   "scripts": {
-    "test": "node test/test.js"
+    "test": "node src/index.js -p test/test.sb3 -d test/ -o 2"
   },
   "repository": {
     "type": "git",

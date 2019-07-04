@@ -1,7 +1,8 @@
 "use strict";
-const scvm = require("scratch-vm");
 const cli = require("cli");
 const fs = require("fs");
+const path = require("path");
+const child_process = require("child_process");
 /*
     cli:
     工程路径
@@ -12,85 +13,78 @@ const fs = require("fs");
 */
 
 const options = cli.parse({
-    projectFile: ["p","Project needs to load","file",null],
-    iListFile: ["i","The list file needs to import to the project.","file",null],
-    oListFile: ["o","The list file needs to export from the project.","file",null],
-    time: ["t","How many time does the project can use? (ms)","int",1000],
-    mem: ["m","How many memory does the project can use? (kb)","int",40960],
-    mem: ["s","Use turbo mode to run the program.","boolean",true],
+    projectFile: ["p", "Project needs to load", "file", null],
+    testFolder: ["d", "Folder includes test file like input list and expected output file with order.", "file", null],
+    testpoints: ["o", "Testing points in total.", "int", 10],
+    // iListFile: ["i","The list file needs to import to the project.","file",null],
+    // oListFile: ["o","The list file needs to export from the project.","file",null],
+    time: ["t", "How many time does the project can use? (ms)", "int", 1000],
+    mem: ["m", "How many memory does the project can use? (kb)", "int", 40960],
+    turbo: ["s", "Use turbo mode to run the program.", "boolean", true],
 })
 
-if(!options.projectFile || !fs.existsSync(options.projectFile)){
+if (!options.projectFile || !fs.existsSync(options.projectFile)) {
     console.log("[Error] Can't find project file.")
     return;
 }
-if(!options.iListFile || !fs.existsSync(options.iListFile)){
+if (!options.testFolder || !fs.existsSync(options.testFolder)) {
     console.log("[Error] Can't find input list file.")
     return;
 }
-if(!options.oListFile){
-    console.log("[Error] Can't find output list file.")
-    return;
+
+let
+    inputLists = [],
+    outputLists = [];
+
+for (let i = 1; i <= options.testpoints; i++) {
+    if (fs.existsSync(path.join(options.testFolder, `${i}.in`))) {
+        inputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.in`));
+        console.log(`Read file ${path.join(options.testFolder, `${i}.in`)}`)
+    } else {
+        console.error(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`)
+    }
+    if (fs.existsSync(path.join(options.testFolder, `${i}.out`))) {
+        outputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.out`));
+        console.log(`Read file ${path.join(options.testFolder, `${i}.out`)}`)
+    } else {
+        console.error(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`)
+    }
+}
+
+console.log("Starting testing points...")
+let result = []
+let runningPoints = 0
+for (let i = 0; i < options.testpoints; i++) {
+    runningPoints++;
+    child_process.fork("./src/TestingPoint.js",
+        [
+            i+1,
+            options.projectFile,
+            inputLists[i],
+            outputLists[i],
+            options.time,
+            options.mem,
+            options.turbo
+        ])
+    .once("message",(msg)=>{
+        result[i] = msg;
+    }).once("close",()=>{
+        runningPoints--;
+        if(runningPoints<=0){
+            console.log("Test finish, result:")
+            process.stdout.write(JSON.stringify(result,"","\t"))
+        }
+    })
 }
 
 /*
-    AC：Accept，程序通过。
-    CE：Compile Error，编译错误。
-    PC：Partially Correct，部分正确。
-    WA：Wrong Answer，答案错误。
-    RE：Runtime Error，运行时错误。
-    TLE：Time Limit Exceeded，超出时间限制。
-    MLE：Memory Limit Exceeded，超出内存限制。
-    OLE：Output Limit Exceeded，输出超过限制。
-    UKE：Unknown Error，出现未知错误。
-*/
+fs.readdir(options.testFolder,(err,files)=>{
+    for(filename of files){
+        if(filename.search(new RegExp(`[1-${options.testpoints}].in`) != -1)){
 
+        }else if(filename.search(new RegExp(`[1-${options.testpoints}].out`) != -1)){
 
-let vm = new scvm();
-let result = {
-    status: "AC",
-    details:"Code Accepted. No error.",
-}
-
-/**
- * 输出报告
- */
-function printResult(){
-    console.log(`${"-".repeat(10)} Result`);
-    console.log(`Status: ${result.status}`);
-    console.log(`Details:${result.details}`);
-    console.log(`${"-".repeat(10)} Result End`);
-}
-
-console.log("Loading Project...")
-
-vm.loadProject(fs.readFileSync(options.projectFile))
-.then(()=>new Promise((res,rej)=>{
-    console.log("Importing list...")
-    let stage = vm.runtime.getTargetForStage();
-    let input = stage.lookupOrCreateList("input");
-    let output = stage.lookupOrCreateList("output");
-    let inputFile = fs.readFileSync(options.iListFile);
-    input.value = inputFile.toString().split("\r\n");
-    output.value = [];
-    if(!stage){rej("Can't find stage.")};
-    res();
-})).then(()=>new Promise((res,rej)=>{
-    const profiler = vm.runtime.profiler
-    const stepid = profiler.idByName("Runtime._step");
-    profiler.onFrame = ({id, selfTime, totalTime, arg}) => {
-        if (id === stepId) {
-            runningStatsView.render();
         }
-    };
-    res();
-})).then(()=>new Promise((res,rej)=>{
-    console.log("Ready for test, wait a second...")
-    res();
-})).catch((err)=>{
-    result.status = "RE"
-    result.details = err
-}).finally(()=>{
-    printResult();
+    }
 })
-
+*/
