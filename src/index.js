@@ -54,7 +54,7 @@ for (let i = 1; i <= options.testpoints; i++) {
 console.log("Starting testing points...")
 let result = []
 let runningPoints = 0
-for (let i = 0; i < options.testpoints; i++) {
+for (let i = 1; i <= options.testpoints; i++) {
     runningPoints++;
     child_process.fork("./src/TestingPoint.js",
         [
@@ -67,7 +67,7 @@ for (let i = 0; i < options.testpoints; i++) {
             options.turbo
         ])
     .once("message",(msg)=>{
-        result[i] = msg;
+        result[i-1] = msg;
     }).once("close",()=>{
         runningPoints--;
         if(runningPoints<=0){
