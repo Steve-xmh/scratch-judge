@@ -56,8 +56,8 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
     let stage = vm.runtime.getTargetForStage();
     let input = stage.lookupVariableByNameAndType("input","list");
     let output = stage.lookupVariableByNameAndType("output","list");
-    console.log(input);
-    console.log(output);
+    // console.log(input);
+    // console.log(output);
     let inputFile = arg.input
     input.value = inputFile.toString().split("\r\n");
     output.value = [];
@@ -107,8 +107,8 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
     let output = stage.lookupVariableByNameAndType("output","list");
     let input = stage.lookupVariableByNameAndType("input","list");
     const ret = output.value.join("\r\n");
-    console.log(output);
-    console.log(input);
+    // console.log(output);
+    // console.log(input);
     if(ret == arg.output){
         res();
     }else{
