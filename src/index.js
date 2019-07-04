@@ -21,6 +21,7 @@ const options = cli.parse({
     time: ["t", "How many time does the project can use? (ms)", "int", 1000],
     mem: ["m", "How many memory does the project can use? (kb)", "int", 40960],
     turbo: ["s", "Use turbo mode to run the program.", "boolean", true],
+    format: ["f", "Format the json output.", "boolean", false],
 })
 
 if (!options.projectFile || !fs.existsSync(options.projectFile)) {
@@ -58,7 +59,7 @@ for (let i = 1; i <= options.testpoints; i++) {
     runningPoints++;
     child_process.fork("./src/TestingPoint.js",
         [
-            i+1,
+            i,
             options.projectFile,
             inputLists[i],
             outputLists[i],
@@ -72,7 +73,10 @@ for (let i = 1; i <= options.testpoints; i++) {
         runningPoints--;
         if(runningPoints<=0){
             console.log("Test finish, result:")
-            process.stdout.write(JSON.stringify(result,"","\t"))
+            if(options.format)
+                process.stdout.write(JSON.stringify(result,"","\t"))
+            else
+                process.stdout.write(JSON.stringify(result))
         }
     })
 }

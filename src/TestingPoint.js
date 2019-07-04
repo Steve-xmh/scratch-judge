@@ -30,9 +30,30 @@ function log(msg){
 
 let vm = new scvm();
 let result = {
-    testNum: arg.pointNum,
+    /**
+     * 测试点编号
+     */
+    id: arg.pointNum,
+    /**
+     * 状态码
+     */
     status: "AC",
+    /**
+     * 状态详情，当状态为 RE 时，则此处为错误信息
+     */
     details:"Code Accepted. No error.",
+    /**
+     * 使用的时间，单位为 ms
+     */
+    usedTime:undefined,
+    /**
+     * 内存最高值，单位为 KB
+     */
+    usedMemory:undefined,
+    /**
+     * 如果 WA ，则此处为输出的错误答案
+     */
+    answer:undefined,
 }
 // 为了防止因为垃圾内存回收导致的检验结果不准确
 // 会加入一个平稳状态下的内存值，仅作为不在运行
@@ -46,6 +67,7 @@ let startTime = Date.now();
  */
 function printResult(){
     process.send(result)
+    log("Test finished.")
 }
 
 log("Loading Project...")
@@ -56,8 +78,6 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
     let stage = vm.runtime.getTargetForStage();
     let input = stage.lookupVariableByNameAndType("input","list");
     let output = stage.lookupVariableByNameAndType("output","list");
-    // console.log(input);
-    // console.log(output);
     let inputFile = arg.input
     input.value = inputFile.toString().split("\r\n");
     output.value = [];
@@ -71,12 +91,14 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
 })).then(()=>new Promise((res,rej)=>{
     log("Ready for test, wait a second...");
     stableMem = process.memoryUsage().heapUsed;
+    startTime = Date.now();
+    vm.start();
     vm.greenFlag();
     const step = setInterval(()=>{
         let curMem = process.memoryUsage().heapUsed;
         let curTime = Date.now();
         if(curMem - stableMem > arg.mem){ // MLE
-            vm.stopAll();
+            clearTimeout(vm.runtime._steppingInterval)
             clearInterval(step);
             result.status = "MLE";
             result.details = "Memory Limit Exceeded";
@@ -84,15 +106,15 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
             result.usedMemory = (curMem - stableMem)/1024;
             printResult();
         }else if(curTime - startTime > arg.time){ // TLE
-            vm.stopAll();
+            clearTimeout(vm.runtime._steppingInterval)
             clearInterval(step);
             result.status = "TLE";
             result.details = "Time Limit Exceeded";
             result.usedTime = curTime - startTime;
             result.usedMemory = (curMem - stableMem)/1024;
             printResult();
-        }else if(vm.runtime._getMonitorThreadCount(vm.runtime.threads) <= 0){ // 执行完毕
-            vm.stopAll();
+        }else if(vm.runtime.threads.length <= 0){ // 执行完毕
+            clearTimeout(vm.runtime._steppingInterval)
             clearInterval(step);
             result.usedTime = curTime - startTime;
             result.usedMemory = (curMem - stableMem)/1024;
@@ -101,21 +123,16 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
             highestMem = curMem;
         }
     },10);
-    startTime = Date.now();
 })).then(()=>new Promise((res,rej)=>{
     let stage = vm.runtime.getTargetForStage();
     let output = stage.lookupVariableByNameAndType("output","list");
-    let input = stage.lookupVariableByNameAndType("input","list");
     const ret = output.value.join("\r\n");
-    // console.log(output);
-    // console.log(input);
     if(ret == arg.output){
         res();
     }else{
         result.status = "WA";
         result.details = "Wrong Answer";
-        result.correctAnswer = arg.output;
-        result.answer = ret;
+        result.answer = ret; // 输出的答案
         printResult();
     }
 })).catch((err)=>{
