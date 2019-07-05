@@ -22,10 +22,10 @@ const arg = {
     time: cli.args[4],
     mem: cli.args[5] * 1024,
     turbo: cli.args[6] === undefined,
-}
+};
 
 function log(msg){
-    console.log(`[${arg.pointNum}]${msg}`)
+    console.log(`[${arg.pointNum}]${msg}`);
 }
 
 let vm = new scvm();
@@ -66,39 +66,45 @@ let startTime = Date.now();
  * 输出报告
  */
 function printResult(){
-    process.send(result)
-    log("Test finished.")
+    process.send(result);
+    log("Test finished.");
 }
 
 log("Loading Project...")
 
 vm.loadProject(fs.readFileSync(arg.projectFile))
-.then(()=>new Promise((res,rej)=>{
-    log("Importing list...")
+.then(()=>new Promise((resolve,reject)=>{
+    log("Importing list...");
     let stage = vm.runtime.getTargetForStage();
     let input = stage.lookupVariableByNameAndType("input","list");
     let output = stage.lookupVariableByNameAndType("output","list");
-    let inputFile = arg.input
-    input.value = inputFile.toString().split("\r\n");
+    let inputFile = arg.input;
+    input.value = inputFile.toString().replace(/\r/g,"").split("\n");
+    while(input.value[0]==""){
+        input.value.shift();
+    }
+    while(input.value[input.value.length-1]==""){
+        input.value.pop();
+    }
+    for(let key in input.value){
+        input.value[key].trimRight();
+    }
     output.value = [];
-    if(!stage){rej("Can't find stage.")};
-    res();
-})).then(()=>new Promise((res,rej)=>{
+    if(!stage){reject("Can't find stage.")};
+    resolve();
+})).then(()=>new Promise((resolve)=>{
     vm.setTurboMode(arg.turbo);
-    highestMem = process.memoryUsage().heapUsed;
-    stableMem = process.memoryUsage().heapUsed;
-    res();
-})).then(()=>new Promise((res,rej)=>{
     log("Ready for test, wait a second...");
     stableMem = process.memoryUsage().heapUsed;
+    highestMem = process.memoryUsage().heapUsed;
     startTime = Date.now();
     vm.start();
     vm.greenFlag();
     const step = setInterval(()=>{
-        let curMem = process.memoryUsage().heapUsed;
-        let curTime = Date.now();
+        const curMem = process.memoryUsage().heapUsed;
+        const curTime = Date.now();
         if(curMem - stableMem > arg.mem){ // MLE
-            clearTimeout(vm.runtime._steppingInterval)
+            clearTimeout(vm.runtime._steppingInterval);
             clearInterval(step);
             result.status = "MLE";
             result.details = "Memory Limit Exceeded";
@@ -106,7 +112,7 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
             result.usedMemory = (curMem - stableMem)/1024;
             printResult();
         }else if(curTime - startTime > arg.time){ // TLE
-            clearTimeout(vm.runtime._steppingInterval)
+            clearTimeout(vm.runtime._steppingInterval);
             clearInterval(step);
             result.status = "TLE";
             result.details = "Time Limit Exceeded";
@@ -114,27 +120,29 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
             result.usedMemory = (curMem - stableMem)/1024;
             printResult();
         }else if(vm.runtime.threads.length <= 0){ // 执行完毕
-            clearTimeout(vm.runtime._steppingInterval)
+            clearTimeout(vm.runtime._steppingInterval);
             clearInterval(step);
             result.usedTime = curTime - startTime;
             result.usedMemory = (curMem - stableMem)/1024;
-            res();
+            resolve();
         }else if(curMem > highestMem){
             highestMem = curMem;
         }
-    },10);
-})).then(()=>new Promise((res,rej)=>{
+    },1);
+})).then(()=>new Promise((resolve)=>{
     let stage = vm.runtime.getTargetForStage();
     let output = stage.lookupVariableByNameAndType("output","list");
-    const ret = output.value.join("\r\n");
-    if(ret == arg.output){
-        res();
-    }else{
-        result.status = "WA";
-        result.details = "Wrong Answer";
-        result.answer = ret; // 输出的答案
-        printResult();
+    const ret = output.value;
+    const outputList = arg.output.replace(/\r/g,"").split("\n");
+    for(let key in outputList){
+        if(ret[key] != outputList[key].trimRight()){
+            result.status = "WA";
+            result.details = "Wrong Answer";
+            result.answer = ret; // 输出的答案
+            break;
+        }
     }
+    resolve();
 })).catch((err)=>{
     result.status = "RE";
     result.details = `${err}`;

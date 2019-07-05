@@ -98,7 +98,7 @@ if (require.main === module) {
         "max-memory": ["m", "How many memory does the project can use? (kb)", "int", 40960],
         "enable-turbo": ["s", "Use turbo mode to run the program.", "boolean", true],
         "format-result": ["f", "Format the json output.", "boolean", false],
-    })
+    });
     options.projectFile = options["project-file"];
     options.testFolder = options["test-folder"];
     options.testPoints = options["test-points"];
@@ -107,7 +107,7 @@ if (require.main === module) {
     options.turbo = options["enable-turbo"];
     options.format = options["format-result"];
     options.cli = true;
-    testProject(options)
+    testProject(options);
 } else {
     module.exports = testProject;
 }
