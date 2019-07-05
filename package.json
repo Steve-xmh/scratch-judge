@@ -1,6 +1,6 @@
 {
   "name": "scratch-judge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A custom scratch-vm used to watch program status and output result about the program.",
   "main": "src/index.js",
   "scripts": {

@@ -3,8 +3,9 @@ const cli = require("cli");
 const fs = require("fs");
 const path = require("path");
 const child_process = require("child_process");
+
 /*
-    cli:
+    cli usage:
     工程路径
     输入链表路径
     输出链表路径
@@ -12,83 +13,94 @@ const child_process = require("child_process");
     最大使用内存 (kb)
 */
 
-const options = cli.parse({
-    projectFile: ["p", "Project needs to load", "file", null],
-    testFolder: ["d", "Folder includes test file like input list and expected output file with order.", "file", null],
-    testpoints: ["o", "Testing points in total.", "int", 10],
-    // iListFile: ["i","The list file needs to import to the project.","file",null],
-    // oListFile: ["o","The list file needs to export from the project.","file",null],
-    time: ["t", "How many time does the project can use? (ms)", "int", 1000],
-    mem: ["m", "How many memory does the project can use? (kb)", "int", 40960],
-    turbo: ["s", "Use turbo mode to run the program.", "boolean", true],
-    format: ["f", "Format the json output.", "boolean", false],
-})
+function testProject(options) {
+    return new Promise((res, rej) => {
+        if (!options.projectFile || !fs.existsSync(options.projectFile)) {
+            if (options.cli) {
+                return console.log("[Error] Can't find project file.")
+            } else {
+                return rej("Can't find project file.");
+            }
+        }
+        if (!options.testFolder || !fs.existsSync(options.testFolder)) {
+            if (options.cli) {
+                return console.log("[Error] Can't find input list file.")
+            } else {
+                return rej("[Error] Can't find input list file.")
+            }
+        }
 
-if (!options.projectFile || !fs.existsSync(options.projectFile)) {
-    console.log("[Error] Can't find project file.")
-    return;
-}
-if (!options.testFolder || !fs.existsSync(options.testFolder)) {
-    console.log("[Error] Can't find input list file.")
-    return;
-}
+        let
+            inputLists = [],
+            outputLists = [];
 
-let
-    inputLists = [],
-    outputLists = [];
+        for (let i = 1; i <= options.testpoints; i++) {
+            if (fs.existsSync(path.join(options.testFolder, `${i}.in`))) {
+                inputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.in`));
+                if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.in`)}`);
+            } else {
+                if (options.cli) console.error(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`);
+                else rej(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`)
+            }
+            if (fs.existsSync(path.join(options.testFolder, `${i}.out`))) {
+                outputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.out`));
+                if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.out`)}`);
+            } else {
+                if (options.cli) return console.error(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`);
+                else rej(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`)
+            }
+        }
 
-for (let i = 1; i <= options.testpoints; i++) {
-    if (fs.existsSync(path.join(options.testFolder, `${i}.in`))) {
-        inputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.in`));
-        console.log(`Read file ${path.join(options.testFolder, `${i}.in`)}`)
-    } else {
-        console.error(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`)
-    }
-    if (fs.existsSync(path.join(options.testFolder, `${i}.out`))) {
-        outputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.out`));
-        console.log(`Read file ${path.join(options.testFolder, `${i}.out`)}`)
-    } else {
-        console.error(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`)
-    }
-}
-
-console.log("Starting testing points...")
-let result = []
-let runningPoints = 0
-for (let i = 1; i <= options.testpoints; i++) {
-    runningPoints++;
-    child_process.fork("./src/TestingPoint.js",
-        [
-            i,
-            options.projectFile,
-            inputLists[i],
-            outputLists[i],
-            options.time,
-            options.mem,
-            options.turbo
-        ])
-    .once("message",(msg)=>{
-        result[i-1] = msg;
-    }).once("close",()=>{
-        runningPoints--;
-        if(runningPoints<=0){
-            console.log("Test finish, result:")
-            if(options.format)
-                process.stdout.write(JSON.stringify(result,"","\t"))
-            else
-                process.stdout.write(JSON.stringify(result))
+        if (options.cli) console.log("Starting testing points...")
+        let result = []
+        let runningPoints = 0
+        for (let i = 1; i <= options.testpoints; i++) {
+            runningPoints++;
+            child_process.fork("./src/TestingPoint.js",
+                [
+                    i,
+                    options.projectFile,
+                    inputLists[i],
+                    outputLists[i],
+                    options.time,
+                    options.mem,
+                    options.turbo
+                ])
+                .once("message", (msg) => {
+                    result[i - 1] = msg;
+                }).once("close", () => {
+                    runningPoints--;
+                    if (runningPoints <= 0) {
+                        if (options.cli) {
+                            console.log("Test finish, result:")
+                            if (options.format)
+                                process.stdout.write(JSON.stringify(result, "", "\t"));
+                            else
+                                process.stdout.write(JSON.stringify(result));
+                        }else{
+                            res(result);
+                        }
+                    }
+                })
         }
     })
 }
 
-/*
-fs.readdir(options.testFolder,(err,files)=>{
-    for(filename of files){
-        if(filename.search(new RegExp(`[1-${options.testpoints}].in`) != -1)){
-
-        }else if(filename.search(new RegExp(`[1-${options.testpoints}].out`) != -1)){
-
-        }
-    }
-})
-*/
+// 是否以模块形式被引用
+if (require.main === module) {
+    const options = cli.parse({
+        projectFile: ["p", "Project needs to load", "file", null],
+        testFolder: ["d", "Folder includes test file like input list and expected output file with order.", "file", null],
+        testpoints: ["o", "Testing points in total.", "int", 10],
+        // iListFile: ["i","The list file needs to import to the project.","file",null],
+        // oListFile: ["o","The list file needs to export from the project.","file",null],
+        time: ["t", "How many time does the project can use? (ms)", "int", 1000],
+        mem: ["m", "How many memory does the project can use? (kb)", "int", 40960],
+        turbo: ["s", "Use turbo mode to run the program.", "boolean", true],
+        format: ["f", "Format the json output.", "boolean", false],
+    })
+    options.cli = true;
+    testProject(options)
+} else {
+    module.exports = testProject;
+}
