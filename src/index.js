@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const child_process = require("child_process");
 
+const head = 'data' //文件前缀
 /*
     cli usage:
     工程路径
@@ -35,19 +36,19 @@ function testProject(options) {
             outputLists = [];
 
         for (let i = 1; i <= options.testPoints; i++) {
-            if (fs.existsSync(path.join(options.testFolder, `${i}.in`))) {
-                inputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.in`));
+            if (fs.existsSync(path.join(options.testFolder, head+`${i}.in`))) {
+                inputLists[i] = fs.readFileSync(path.join(options.testFolder, head+`${i}.in`));
                 if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.in`)}`);
             } else {
-                if (options.cli) console.error(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`);
-                else return rej(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`)
+                if (options.cli) console.error(`Error: missing file ${path.join(options.testFolder, head+`${i}.in`)}`);
+                else return rej(`Error: missing file ${path.join(options.testFolder, head+`${i}.in`)}`)
             }
             if (fs.existsSync(path.join(options.testFolder, `${i}.out`))) {
-                outputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.out`));
-                if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.out`)}`);
+                outputLists[i] = fs.readFileSync(path.join(options.testFolder, head+`${i}.out`));
+                if (options.cli) console.log(`Read file ${path.join(options.testFolder, head+`${i}.out`)}`);
             } else {
-                if (options.cli) return console.error(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`);
-                else return rej(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`)
+                if (options.cli) return console.error(`Error: missing file ${path.join(options.testFolder, head+`${i}.out`)}`);
+                else return rej(`Error: missing file ${path.join(options.testFolder, head+`${i}.out`)}`)
             }
         }
 
