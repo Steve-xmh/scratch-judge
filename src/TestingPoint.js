@@ -21,7 +21,7 @@ const arg = {
     output: cli.args[3],
     time: cli.args[4],
     mem: cli.args[5] * 1024,
-    turbo: cli.args[6],
+    turbo: cli.args[6] === undefined,
 }
 
 function log(msg){

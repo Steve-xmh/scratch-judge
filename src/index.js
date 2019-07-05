@@ -34,27 +34,27 @@ function testProject(options) {
             inputLists = [],
             outputLists = [];
 
-        for (let i = 1; i <= options.testpoints; i++) {
+        for (let i = 1; i <= options.testPoints; i++) {
             if (fs.existsSync(path.join(options.testFolder, `${i}.in`))) {
                 inputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.in`));
                 if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.in`)}`);
             } else {
                 if (options.cli) console.error(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`);
-                else rej(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`)
+                else return rej(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`)
             }
             if (fs.existsSync(path.join(options.testFolder, `${i}.out`))) {
                 outputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.out`));
                 if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.out`)}`);
             } else {
                 if (options.cli) return console.error(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`);
-                else rej(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`)
+                else return rej(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`)
             }
         }
 
         if (options.cli) console.log("Starting testing points...")
         let result = []
         let runningPoints = 0
-        for (let i = 1; i <= options.testpoints; i++) {
+        for (let i = 1; i <= options.testPoints; i++) {
             runningPoints++;
             child_process.fork("./src/TestingPoint.js",
                 [
@@ -65,7 +65,9 @@ function testProject(options) {
                     options.time,
                     options.mem,
                     options.turbo
-                ])
+                ],{
+                    silent: !options.cli,
+                })
                 .once("message", (msg) => {
                     result[i - 1] = msg;
                 }).once("close", () => {
@@ -89,16 +91,21 @@ function testProject(options) {
 // 是否以模块形式被引用
 if (require.main === module) {
     const options = cli.parse({
-        projectFile: ["p", "Project needs to load", "file", null],
-        testFolder: ["d", "Folder includes test file like input list and expected output file with order.", "file", null],
-        testpoints: ["o", "Testing points in total.", "int", 10],
-        // iListFile: ["i","The list file needs to import to the project.","file",null],
-        // oListFile: ["o","The list file needs to export from the project.","file",null],
-        time: ["t", "How many time does the project can use? (ms)", "int", 1000],
-        mem: ["m", "How many memory does the project can use? (kb)", "int", 40960],
-        turbo: ["s", "Use turbo mode to run the program.", "boolean", true],
-        format: ["f", "Format the json output.", "boolean", false],
+        "project-file": ["p", "Project needs to load", "file", null],
+        "test-folder": ["d", "Folder includes test file like input list and expected output file with order.", "file", null],
+        "test-points": ["o", "Testing points in total.", "int", 10],
+        "max-time": ["t", "How many time does the project can use? (ms)", "int", 1000],
+        "max-memory": ["m", "How many memory does the project can use? (kb)", "int", 40960],
+        "enable-turbo": ["s", "Use turbo mode to run the program.", "boolean", true],
+        "format-result": ["f", "Format the json output.", "boolean", false],
     })
+    options.projectFile = options["project-file"];
+    options.testFolder = options["test-folder"];
+    options.testPoints = options["test-points"];
+    options.time = options["max-time"];
+    options.mem = options["max-memory"];
+    options.turbo = options["enable-turbo"];
+    options.format = options["format-result"];
     options.cli = true;
     testProject(options)
 } else {

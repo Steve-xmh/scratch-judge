@@ -32,6 +32,10 @@ judge({
 
 `Promise judge(Object options)` Start a test.
 
+If runs as command, it will output the testing result to stdout.
+
+Or if be invoke as module, it will return a Promise and resolve the result types of JSON.
+
 Here is a list of available options:
 
 - `String projectFile` Path to the scratch project which is supported by the
@@ -48,5 +52,3 @@ Here is a list of available options:
 - `Boolean format` Optional. Output formatted json result after test.
     only be used in cli.
     Default is `false`, output unformatted result.
-
-

@@ -1,10 +1,10 @@
 {
   "name": "scratch-judge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A custom scratch-vm used to watch program status and output result about the program.",
   "main": "src/index.js",
   "scripts": {
-    "test": "node src/index.js -p test/test.sb3 -d test/ -o 3"
+    "test": "node test/test.js"
   },
   "repository": {
     "type": "git",
