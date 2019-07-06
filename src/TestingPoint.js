@@ -19,13 +19,16 @@ const arg = {
     projectFile: cli.args[1],
     input: cli.args[2],
     output: cli.args[3],
-    time: cli.args[4],
+    time: cli.args[4]/1000,
     mem: cli.args[5] * 1024,
     turbo: cli.args[6] === undefined,
+    debug: cli.args[7],
+    traceFullMemory: cli.args[8],
 };
 
 function log(msg){
-    console.log(`[${arg.pointNum}]${msg}`);
+    if (arg.debug)
+        console.log(`[${arg.pointNum}]${msg}`);
 }
 
 let vm = new scvm();
@@ -95,35 +98,37 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
 })).then(()=>new Promise((resolve)=>{
     vm.setTurboMode(arg.turbo);
     log("Ready for test, wait a second...");
+    process
     stableMem = process.memoryUsage().heapUsed;
     highestMem = process.memoryUsage().heapUsed;
-    startTime = Date.now();
+    startTime = process.uptime();
     vm.start();
     vm.greenFlag();
     const step = setInterval(()=>{
         const curMem = process.memoryUsage().heapUsed;
-        const curTime = Date.now();
-        if(curMem - stableMem > arg.mem){ // MLE
+        const curTime = process.uptime();
+        const usedMem = arg.traceFullMemory ? curMem : curMem - stableMem;
+        if(usedMem > arg.mem){ // MLE
             clearTimeout(vm.runtime._steppingInterval);
             clearInterval(step);
             result.status = "MLE";
             result.details = "Memory Limit Exceeded";
-            result.usedTime = curTime - startTime;
-            result.usedMemory = (curMem - stableMem)/1024;
+            result.usedTime = (curTime - startTime)*1000;
+            result.usedMemory = usedMem/1024;
             printResult();
         }else if(curTime - startTime > arg.time){ // TLE
             clearTimeout(vm.runtime._steppingInterval);
             clearInterval(step);
             result.status = "TLE";
             result.details = "Time Limit Exceeded";
-            result.usedTime = curTime - startTime;
-            result.usedMemory = (curMem - stableMem)/1024;
+            result.usedTime = (curTime - startTime)*1000;
+            result.usedMemory = usedMem/1024;
             printResult();
         }else if(vm.runtime.threads.length <= 0){ // 执行完毕
             clearTimeout(vm.runtime._steppingInterval);
             clearInterval(step);
-            result.usedTime = curTime - startTime;
-            result.usedMemory = (curMem - stableMem)/1024;
+            result.usedTime = (curTime - startTime)*1000;
+            result.usedMemory = usedMem/1024;
             resolve();
         }else if(curMem > highestMem){
             highestMem = curMem;
@@ -135,9 +140,10 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
     const ret = output.value;
     const outputList = arg.output.replace(/\r/g,"").split("\n");
     for(let key in outputList){
-        if(ret[key] != outputList[key].trimRight()){
+        if(String(outputList[key]) == "") continue;
+        if(String(ret[key]) != String(outputList[key]).trimRight()){
             result.status = "WA";
-            result.details = "Wrong Answer";
+            result.details = `Wrong Answer in line ${key}`;
             result.answer = ret; // 输出的答案
             break;
         }

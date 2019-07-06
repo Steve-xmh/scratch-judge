@@ -16,15 +16,17 @@ const child_process = require("child_process");
 function testProject(options) {
     return new Promise((res, rej) => {
         if (!options.projectFile || !fs.existsSync(options.projectFile)) {
+            if (options.cli ||options.debug) console.log("[Error] Can't find project file.");
             if (options.cli) {
-                return console.log("[Error] Can't find project file.")
+                return;
             } else {
                 return rej("Can't find project file.");
             }
         }
         if (!options.testFolder || !fs.existsSync(options.testFolder)) {
+            if (options.cli || options.debug) console.log("[Error] Can't find input list file.");
             if (options.cli) {
-                return console.log("[Error] Can't find input list file.")
+                return;
             } else {
                 return rej("[Error] Can't find input list file.")
             }
@@ -33,30 +35,34 @@ function testProject(options) {
         let
             inputLists = [],
             outputLists = [];
-
+        const fileNameFormat = options.fileNameFormat || "#{n}";
         for (let i = 1; i <= options.testPoints; i++) {
-            if (fs.existsSync(path.join(options.testFolder, `${i}.in`))) {
-                inputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.in`));
-                if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.in`)}`);
+            const inputFile = fileNameFormat.replace(/\#\{n\}/g,i.toString()) + ".in";
+            const outputFile = fileNameFormat.replace(/\#\{n\}/g,i.toString()) + ".out";
+            if (fs.existsSync(path.join(options.testFolder, inputFile))) {
+                inputLists[i] = fs.readFileSync(path.join(options.testFolder, inputFile));
+                if (options.debug) console.log(`Read file ${path.join(options.testFolder, inputFile)}`);
             } else {
-                if (options.cli) console.error(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`);
-                else return rej(`Error: missing file ${path.join(options.testFolder, `${i}.in`)}`)
+                if (options.debug) console.error(`Error: missing file ${path.join(options.testFolder, inputFile)}`);
+                if (options.cli) return;
+                else return rej(`Error: missing file ${path.join(options.testFolder, inputFile)}`)
             }
-            if (fs.existsSync(path.join(options.testFolder, `${i}.out`))) {
-                outputLists[i] = fs.readFileSync(path.join(options.testFolder, `${i}.out`));
-                if (options.cli) console.log(`Read file ${path.join(options.testFolder, `${i}.out`)}`);
+            if (fs.existsSync(path.join(options.testFolder, outputFile))) {
+                outputLists[i] = fs.readFileSync(path.join(options.testFolder, outputFile));
+                if (options.cli || options.debug) console.log(`Read file ${path.join(options.testFolder, outputFile)}`);
             } else {
-                if (options.cli) return console.error(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`);
-                else return rej(`Error: missing file ${path.join(options.testFolder, `${i}.out`)}`)
+                if (options.debug) console.error(`Error: missing file ${path.join(options.testFolder, outputFile)}`);
+                if (options.cli) return;
+                else return rej(`Error: missing file ${path.join(options.testFolder, outputFile)}`)
             }
         }
 
-        if (options.cli) console.log("Starting testing points...")
+        if (options.cli || options.debug) console.log("Starting testing points...")
         let result = []
         let runningPoints = 0
         for (let i = 1; i <= options.testPoints; i++) {
             runningPoints++;
-            child_process.fork("./src/TestingPoint.js",
+            child_process.fork(path.join(__dirname,"TestingPoint.js"),
                 [
                     i,
                     options.projectFile,
@@ -64,9 +70,11 @@ function testProject(options) {
                     outputLists[i],
                     options.time,
                     options.mem,
-                    options.turbo
+                    options.turbo,
+                    options.debug,
+                    options.traceFullMemory || true,
                 ],{
-                    silent: !options.cli,
+                    silent: !options.debug,
                 })
                 .once("message", (msg) => {
                     result[i - 1] = msg;
@@ -74,7 +82,7 @@ function testProject(options) {
                     runningPoints--;
                     if (runningPoints <= 0) {
                         if (options.cli) {
-                            console.log("Test finish, result:")
+                            if (options.debug) console.log("Test finish, result:")
                             if (options.format)
                                 process.stdout.write(JSON.stringify(result, "", "\t"));
                             else
@@ -98,15 +106,21 @@ if (require.main === module) {
         "max-memory": ["m", "How many memory does the project can use? (kb)", "int", 40960],
         "enable-turbo": ["s", "Use turbo mode to run the program.", "boolean", true],
         "format-result": ["f", "Format the json output.", "boolean", false],
+        "debug": ["b", "Format the json output.", "boolean", false],
+        "file-name-format": ["n", "The format of the file name. Will replace \"#{n}\" to the testing point number.", "string", "#{n}"],
+        "trace-full-memory": ["y", "The format of the file name. Will replace \"#{n}\" to the testing point number.", "string", "#{n}"],
     });
     options.projectFile = options["project-file"];
+    options.fileNameFormat = options["file-name-format"];
     options.testFolder = options["test-folder"];
     options.testPoints = options["test-points"];
     options.time = options["max-time"];
     options.mem = options["max-memory"];
+    options.debug = options["debug"];
     options.turbo = options["enable-turbo"];
     options.format = options["format-result"];
     options.cli = true;
+    options.traceFullMemory = options["trace-full-memory"];
     testProject(options);
 } else {
     module.exports = testProject;
