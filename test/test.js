@@ -6,6 +6,7 @@ judge({
     testPoints: 3,
     time: 1000,
     mem: 22 * 1024,
+    debug: true
 }).then((val) => {
     console.log("Test Finished:")
     console.log(val)

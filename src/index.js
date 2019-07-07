@@ -3,6 +3,7 @@ const cli = require("cli");
 const fs = require("fs");
 const path = require("path");
 const child_process = require("child_process");
+const worker_threads = require("worker_threads")
 
 /*
     cli usage:
@@ -16,7 +17,7 @@ const child_process = require("child_process");
 function testProject(options) {
     return new Promise((res, rej) => {
         if (!options.projectFile || !fs.existsSync(options.projectFile)) {
-            if (options.cli ||options.debug) console.log("[Error] Can't find project file.");
+            if (options.cli || options.debug) console.log("[Error] Can't find project file.");
             if (options.cli) {
                 return;
             } else {
@@ -37,10 +38,10 @@ function testProject(options) {
             outputLists = [];
         const fileNameFormat = options.fileNameFormat || "#{n}";
         for (let i = 1; i <= options.testPoints; i++) {
-            const inputFile = fileNameFormat.replace(/\#\{n\}/g,i.toString()) + ".in";
-            const outputFile = fileNameFormat.replace(/\#\{n\}/g,i.toString()) + ".out";
+            const inputFile = fileNameFormat.replace(/\#\{n\}/g, i.toString()) + ".in";
+            const outputFile = fileNameFormat.replace(/\#\{n\}/g, i.toString()) + ".out";
             if (fs.existsSync(path.join(options.testFolder, inputFile))) {
-                inputLists[i] = fs.readFileSync(path.join(options.testFolder, inputFile));
+                inputLists[i] = fs.readFileSync(path.join(options.testFolder, inputFile)).toString();
                 if (options.debug) console.log(`Read file ${path.join(options.testFolder, inputFile)}`);
             } else {
                 if (options.debug) console.error(`Error: missing file ${path.join(options.testFolder, inputFile)}`);
@@ -48,7 +49,7 @@ function testProject(options) {
                 else return rej(`Error: missing file ${path.join(options.testFolder, inputFile)}`)
             }
             if (fs.existsSync(path.join(options.testFolder, outputFile))) {
-                outputLists[i] = fs.readFileSync(path.join(options.testFolder, outputFile));
+                outputLists[i] = fs.readFileSync(path.join(options.testFolder, outputFile)).toString();
                 if (options.cli || options.debug) console.log(`Read file ${path.join(options.testFolder, outputFile)}`);
             } else {
                 if (options.debug) console.error(`Error: missing file ${path.join(options.testFolder, outputFile)}`);
@@ -62,23 +63,23 @@ function testProject(options) {
         let runningPoints = 0
         for (let i = 1; i <= options.testPoints; i++) {
             runningPoints++;
-            child_process.fork(path.join(__dirname,"TestingPoint.js"),
-                [
+            new worker_threads.Worker(path.join(__dirname, "TestingPoint.js"), {
+                workerData: [
                     i,
                     options.projectFile,
                     inputLists[i],
                     outputLists[i],
                     options.time,
-                    options.mem,
-                    options.turbo,
+                    options.mem || ,
+                    options.turbo || true,
                     options.debug,
                     options.traceFullMemory || true,
-                ],{
-                    silent: !options.debug,
-                })
+                ],
+                stdout: !options.debug
+            })
                 .once("message", (msg) => {
                     result[i - 1] = msg;
-                }).once("close", () => {
+                }).once("exit", () => {
                     runningPoints--;
                     if (runningPoints <= 0) {
                         if (options.cli) {
@@ -87,7 +88,7 @@ function testProject(options) {
                                 process.stdout.write(JSON.stringify(result, "", "\t"));
                             else
                                 process.stdout.write(JSON.stringify(result));
-                        }else{
+                        } else {
                             res(result);
                         }
                     }
@@ -106,7 +107,7 @@ if (require.main === module) {
         "max-memory": ["m", "How many memory does the project can use? (kb)", "int", 40960],
         "enable-turbo": ["s", "Use turbo mode to run the program.", "boolean", true],
         "format-result": ["f", "Format the json output.", "boolean", false],
-        "debug": ["b", "Format the json output.", "boolean", false],
+        "debug": ["b", "Output debug message to stdout.", "boolean", false],
         "file-name-format": ["n", "The format of the file name. Will replace \"#{n}\" to the testing point number.", "string", "#{n}"],
         "trace-full-memory": ["y", "The format of the file name. Will replace \"#{n}\" to the testing point number.", "string", "#{n}"],
     });

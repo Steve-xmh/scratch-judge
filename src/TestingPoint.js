@@ -2,6 +2,7 @@
 const scvm = require("scratch-vm");
 const cli = require("cli");
 const fs = require("fs");
+const worker_threads = require("worker_threads")
 
 /*
     AC：Accept，程序通过。
@@ -14,21 +15,22 @@ const fs = require("fs");
     OLE：Output Limit Exceeded，输出超过限制。
     UKE：Unknown Error，出现未知错误。
 */
+
 const arg = {
-    pointNum: cli.args[0],
-    projectFile: cli.args[1],
-    input: cli.args[2],
-    output: cli.args[3],
-    time: cli.args[4]/1000,
-    mem: cli.args[5] * 1024,
-    turbo: cli.args[6] === undefined,
-    debug: cli.args[7],
-    traceFullMemory: cli.args[8],
+    pointNum: worker_threads.workerData[0],
+    projectFile: worker_threads.workerData[1],
+    input: worker_threads.workerData[2],
+    output: worker_threads.workerData[3],
+    time: worker_threads.workerData[4]/1000,
+    mem: worker_threads.workerData[5] * 1024,
+    turbo: worker_threads.workerData[6] === undefined,
+    debug: worker_threads.workerData[7],
+    traceFullMemory: worker_threads.workerData[8],
 };
 
 function log(msg){
     if (arg.debug)
-        console.log(`[${arg.pointNum}]${msg}`);
+        console.log(`[${arg.pointNum}]%o`,msg);
 }
 
 let vm = new scvm();
@@ -69,7 +71,8 @@ let startTime = Date.now();
  * 输出报告
  */
 function printResult(){
-    process.send(result);
+    // process.send(result);
+    worker_threads.parentPort.postMessage(result);
     log("Test finished.");
 }
 
@@ -151,8 +154,8 @@ vm.loadProject(fs.readFileSync(arg.projectFile))
     resolve();
 })).catch((err)=>{
     result.status = "RE";
-    result.details = `${err}`;
-    log(`Error: ${err}`);
+    result.details = `${err.stack}`;
+    log(`Error: ${err} \n${err.stack}`);
 }).finally(()=>{
     printResult();
 })

@@ -58,6 +58,8 @@ Here is a list of available options:
     Default is `1000`.
 - `Boolean turbo` Optional. Using turbo mode to test.
     Default is `true`.
+- `Boolean debug` Optional. Output debug message to stdout.
+    Default is `false`.
 - `Boolean format` Optional. Output formatted json result after test.
     only be used in cli.
     Default is `false`, output unformatted result.
