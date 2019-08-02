@@ -1,9 +1,12 @@
 {
   "name": "scratch-judge",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "A custom scratch-vm used to watch program status and output result about the program.",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
+  "bin": {
+    "scj": "./src/index.js"
+  },
   "scripts": {
     "start": "node ./src/index.js",
     "test": "node ./test/test.js"
