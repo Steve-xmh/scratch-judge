@@ -2,7 +2,6 @@
 const cli = require("cli");
 const fs = require("fs");
 const path = require("path");
-const child_process = require("child_process");
 const worker_threads = require("worker_threads")
 
 /*
@@ -70,7 +69,7 @@ function testProject(options) {
                     inputLists[i],
                     outputLists[i],
                     options.time,
-                    options.mem || ,
+                    options.mem || (options.traceFullMemory || true ? 25 * 1024 : 40960), // 25MB, 4MB
                     options.turbo || true,
                     options.debug,
                     options.traceFullMemory || true,
